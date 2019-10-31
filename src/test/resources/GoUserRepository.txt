@@ -1,0 +1,4 @@
+package com.github.microwww.generate;
+
+public interface GoUserRepository extends JpaRepository<EthBlock, Integer> {
+}
