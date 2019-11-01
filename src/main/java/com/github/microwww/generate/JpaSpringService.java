@@ -7,8 +7,13 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
 import com.github.microwww.generate.util.FileHelper;
 import com.github.microwww.generate.util.ParserHelper;
@@ -31,7 +36,7 @@ public class JpaSpringService {
     public static List<CompilationUnit> readRepositoryCreateService(File src, final String servicePackage) {
         return FileHelper.scanJavaFile(src, (f) -> {
             try {
-                return createServiceByRepository(f, servicePackage, findById, findAll);
+                return createServiceByRepository(f, servicePackage, findById, findAll, save);
             } catch (FileNotFoundException e) {
                 logger.warn("Create error ! File : {}", f.getAbsolutePath(), e);
                 throw new RuntimeException(e);
@@ -43,7 +48,7 @@ public class JpaSpringService {
         CompilationUnit unit = new CompilationUnit(servicePackage);
         CompilationUnit parse = StaticJavaParser.parse(repositoryJavaFile);
 
-        ParserHelper.findTypeBySuperclass(parse, "Repository").ifPresent(se -> {
+        ParserHelper.findTypeBySuperclass(parse, "JpaRepository").ifPresent(se -> {
             String name = se.getKey().getNameAsString();
             NodeList<Type> args = se.getValue().getTypeArguments().get();
             ClassOrInterfaceType entity = (ClassOrInterfaceType) args.get(0);
@@ -91,10 +96,47 @@ public class JpaSpringService {
         }
     };
 
+    //    public Page<BscDicCodeType> findAll(int page, int size) {
+    //        return this.bscDicCodeTypeRepository.findAll(PageRequest.of(page, size));
+    //    }
     public static final BiConsumer<FieldDeclaration, ClassOrInterfaceDeclaration> findAll = (field, repository) -> {
-        List<MethodDeclaration> method = repository.getMethodsByName("findAll");//.get(0);
-        if (!method.isEmpty()) {
-            ParserHelper.delegate(field, method.get(0));
-        }
+        ClassOrInterfaceDeclaration cfc = (ClassOrInterfaceDeclaration) field.getParentNode().get();
+        ClassOrInterfaceType type = (ClassOrInterfaceType) repository.getExtendedTypes(0).getTypeArguments().get().get(0);
+        MethodDeclaration mth = JpaSpringRepository.findAll.apply(cfc, type);
+        mth.setBody(new BlockStmt());
+        Parameter page = new Parameter(PrimitiveType.intType(), "page");
+        Parameter size = new Parameter(PrimitiveType.intType(), "size");
+        mth.setParameters(new NodeList<>(page, size));
+
+        Expression param = new MethodCallExpr(
+                new TypeExpr(new ClassOrInterfaceType().setName("PageRequest")),
+                "of",
+                new NodeList<>(page.getNameAsExpression(), size.getNameAsExpression()));
+        ParserHelper.getRootNode(field).get().addImport("org.springframework.data.domain.PageRequest");
+
+        mth.getBody().get().addStatement(
+                new ReturnStmt(
+                        new MethodCallExpr(
+                                new FieldAccessExpr(
+                                        new ThisExpr(), field.getVariables().get(0).getNameAsString()),
+                                mth.getName(),
+                                new NodeList<>(param))));
+    };
+
+    public static final BiConsumer<FieldDeclaration, ClassOrInterfaceDeclaration> save = (field, repository) -> {
+        ClassOrInterfaceType type = repository.getExtendedTypes().get(0);
+        ClassOrInterfaceType entity = (ClassOrInterfaceType) type.getTypeArguments().get().get(0);
+        ClassOrInterfaceDeclaration clazz = (ClassOrInterfaceDeclaration) field.getParentNode().get();
+        MethodDeclaration save = clazz.addMethod("save", PUBLIC);
+        save.setType(entity);
+        Parameter parameter = save.addAndGetParameter(entity, "entity");
+        BlockStmt stmt = save.getBody().get();
+        stmt.addStatement(
+                new ReturnStmt(
+                        new MethodCallExpr(
+                                new FieldAccessExpr(
+                                        new ThisExpr(), field.getVariables().get(0).getNameAsString()),
+                                save.getName(),
+                                new NodeList<>(new NameExpr(parameter.getName())))));
     };
 }
