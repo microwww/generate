@@ -1,6 +1,9 @@
 package com.github.microwww.generate.util;
 
-import com.github.javaparser.ast.*;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
@@ -94,21 +97,27 @@ public class ParserHelper {
 
     public static void delegate(FieldDeclaration field, MethodDeclaration method) {
         ClassOrInterfaceDeclaration toClazz = (ClassOrInterfaceDeclaration) field.getParentNode().get();
+        FieldAccessExpr expr = new FieldAccessExpr(new ThisExpr(), field.getVariable(0).getNameAsString());
+        delegate(toClazz, expr, method);
+    }
+
+    public static MethodDeclaration delegate(ClassOrInterfaceDeclaration toClazz, FieldAccessExpr fieldAccessExpr, MethodDeclaration method) {
         MethodDeclaration md = toClazz.addMethod(method.getNameAsString(), PUBLIC);
         md.setParameters(method.getParameters());
         md.setType(method.getType());
         CompilationUnit from = getRootNode(method).get();
-        CompilationUnit target = getRootNode(field).get();
+        CompilationUnit target = getRootNode(toClazz).get();
 
         ParserHelper.findImportClass(from, md.getType()).stream().forEach(target::addImport);
         ParserHelper.findImportClass(from, method.getParameters()).forEach(target::addImport);
 
         BlockStmt stmt = md.getBody().get();
-        FieldAccessExpr ex = new FieldAccessExpr(new ThisExpr(), field.getVariable(0).getNameAsString());
+        //FieldAccessExpr ex = new FieldAccessExpr(new ThisExpr(), field); //.getVariable(0).getNameAsString());
         List<NameExpr> collect = method.getParameters().stream().map(m -> new NameExpr(m.getNameAsString())).collect(Collectors.toList());
         NodeList<Expression> list = new NodeList<>();
         list.addAll(collect);
-        stmt.addStatement(new ReturnStmt(new MethodCallExpr(ex, method.getNameAsString(), list)));
+        stmt.addStatement(new ReturnStmt(new MethodCallExpr(fieldAccessExpr, method.getNameAsString(), list)));
+        return md;
     }
 
     public static Optional<CompilationUnit> getRootNode(Node node) {
@@ -128,6 +137,30 @@ public class ParserHelper {
             if (impt.getNameAsString().endsWith("." + classOrInterface)) {
                 return Optional.of(impt);
             }
+        }
+        return Optional.empty();
+    }
+
+    public static ImportDeclaration findImportClass(ClassOrInterfaceDeclaration clazz) {
+        List<String> list = new ArrayList();
+        find(clazz, list).ifPresent(c ->
+                c.getPackageDeclaration().ifPresent(p -> {
+                            list.add(0, p.getNameAsString());
+                        }));
+        String join = list.stream().collect(Collectors.joining("."));
+        return new ImportDeclaration(join, false, false);
+    }
+
+    private static Optional<CompilationUnit> find(Node node, List<String> append) {
+        if (node instanceof ClassOrInterfaceDeclaration) {
+            append.add(((ClassOrInterfaceDeclaration) node).getNameAsString());
+        }
+        Optional<Node> parent = node.getParentNode();
+        if (parent.isPresent()) {
+            return find(parent.get(), append);
+        }
+        if (node instanceof CompilationUnit) {
+            return Optional.of((CompilationUnit) node);
         }
         return Optional.empty();
     }
