@@ -12,12 +12,15 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.microwww.generate.util.ParserHelper;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class CreateController {
 
@@ -32,9 +35,27 @@ public class CreateController {
         clazz.addAndGetAnnotation(RequestMapping.class).addPair("value", new StringLiteralExpr("/" + toURI(entity.getNameAsString())));
 
         FieldDeclaration field = clazz.addField(service.getNameAsString(), ParserHelper.firstLower(service.getNameAsString())).addAnnotation("Autowired");
+        field.tryAddImportToParentCompilationUnit(Autowired.class);
         createListMethod(entity, clazz, field);
         createDetailMethod(entity, clazz, field);
+        createSaveMethod(entity, clazz, field);
 
+        unit.addImport(ParserHelper.findImportClass(entity));
+        unit.addImport(ParserHelper.findImportClass(service));
+
+        return unit;
+    }
+
+    /**
+     *     @PostMapping("/save")
+     *     public void saveGoTeam(GoTeam pay) {
+     *         Optional<GoTeam> db = goTeamService.findById(pay.getId());
+     *         GoTeam entity = db.orElse(pay);
+     *         BeanUtils.copyProperties(pay, entity, "id");
+     *         goTeamService.save(entity);
+     *     }
+     */
+    private static void createSaveMethod(ClassOrInterfaceDeclaration entity, ClassOrInterfaceDeclaration clazz, FieldDeclaration field) {
         String param = "entity";
         MethodDeclaration method = clazz.addMethod("save" + entity.getNameAsString(), Modifier.Keyword.PUBLIC);
         method.addParameter(entity.getNameAsString(), param);
@@ -64,17 +85,8 @@ public class CreateController {
                 field.getVariable(0).getNameAsString()),
                 "save",
                 new NodeList<>(new NameExpr("db"))));
-        return unit;
     }
-/**
- *     @PostMapping("/save")
- *     public void saveGoTeam(GoTeam pay) {
- *         Optional<GoTeam> db = goTeamService.findById(pay.getId());
- *         GoTeam entity = db.orElse(pay);
- *         BeanUtils.copyProperties(pay, entity, "id");
- *         goTeamService.save(entity);
- *     }
- */
+
     /**
      * <pre>
      *     @GetMapping("/detail")
@@ -90,6 +102,8 @@ public class CreateController {
     private static void createDetailMethod(ClassOrInterfaceDeclaration entity, ClassOrInterfaceDeclaration clazz, FieldDeclaration field) {
         MethodDeclaration method = clazz.addMethod("detail" + entity.getNameAsString(), Modifier.Keyword.PUBLIC);
         method.setType(entity.getNameAsString() + "Value.Simple").addAndGetAnnotation(GetMapping.class).addPair("value", new StringLiteralExpr("/detail"));
+
+        //method.tryAddImportToParentCompilationUnit();
 
         Optional<FieldDeclaration> id = ParserHelper.findFieldByAnnotation(entity, "Id");
         method.addAndGetParameter(id.get().getElementType(), "id");
@@ -134,6 +148,9 @@ public class CreateController {
                         "map", new NodeList<>(new MethodReferenceExpr(new NameExpr(entity.getNameAsString() + "Value.Simple"), new NodeList<>(), "new"))),
                         "collect", new NodeList<>(new MethodCallExpr(new NameExpr("Collectors"), "toList")))
         ));
+
+        method.tryAddImportToParentCompilationUnit(List.class);
+        method.tryAddImportToParentCompilationUnit(Collectors.class);
     }
 
 
