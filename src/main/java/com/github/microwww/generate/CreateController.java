@@ -14,10 +14,7 @@ import com.github.microwww.generate.util.FileHelper;
 import com.github.microwww.generate.util.ParserHelper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -82,6 +79,7 @@ public class CreateController {
     private void createSaveMethod(ClassOrInterfaceDeclaration clazz, FieldDeclaration field) {
         String param = "entity";
         MethodDeclaration method = clazz.addMethod("save" + entity.getNameAsString(), Modifier.Keyword.PUBLIC);
+        method.addAndGetAnnotation(PostMapping.class).addPair("value", new StringLiteralExpr("/detail"));
         method.addParameter(entity.getNameAsString(), param);
         Optional<FieldDeclaration> id = ParserHelper.findFieldByAnnotation(entity, "Id");
 

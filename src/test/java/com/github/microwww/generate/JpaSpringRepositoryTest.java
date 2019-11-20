@@ -21,7 +21,7 @@ public class JpaSpringRepositoryTest {
 
     @Test
     public void scanJavaEntity2repository() throws IOException {
-        File src = JpaEntityTest.test;
+        File src = JpaEntityTest.file;
         String pkg = "cn.lcs.generate.repository";
         List<CompilationUnit> units = JpaSpringRepository.readJavaEntity2repository(src, pkg);
         List<File> files = FileHelper.writeJavaFile(src, units);
@@ -30,6 +30,6 @@ public class JpaSpringRepositoryTest {
         logger.info(files.get(0).getCanonicalPath());
 
         String list = Files.readAllLines(files.get(0).toPath()).stream().collect(Collectors.joining("\n"));
-        assertTrue(list.contains("findAll"));
+        assertTrue(list.contains("JpaRepository"));
     }
 }

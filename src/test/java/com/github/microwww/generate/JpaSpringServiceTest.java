@@ -21,7 +21,7 @@ public class JpaSpringServiceTest {
 
     @Test
     public void testReadRepositoryCreateService() throws IOException {
-        File file = JpaEntityTest.test;
+        File file = JpaEntityTest.file;
         List<CompilationUnit> service = JpaSpringService.readRepositoryCreateService(file, "cn.lcs.generate.service");
         List<File> files = FileHelper.writeJavaFile(file, service);
 
