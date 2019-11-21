@@ -121,10 +121,11 @@ public class CreateController {
      * @param field
      */
     private void createDetailMethod(ClassOrInterfaceDeclaration clazz, FieldDeclaration field) {
+        String returnClass = entity.getNameAsString() + "Value.Info";
         MethodDeclaration method = clazz.addMethod("detail" + entity.getNameAsString(), Modifier.Keyword.PUBLIC);
-        method.setType(entity.getNameAsString() + "Value.Simple").addAndGetAnnotation(GetMapping.class).addPair("value", new StringLiteralExpr("/detail"));
+        method.setType(returnClass).addAndGetAnnotation(GetMapping.class).addPair("value", new StringLiteralExpr("/detail"));
 
-        searchDTO().ifPresent(c -> {
+        searchDTO("Info").ifPresent(c -> {
             ParserHelper.getRootNode(clazz).ifPresent(o -> {
                 o.addImport(ParserHelper.findImportClass(c));
             });
@@ -139,7 +140,7 @@ public class CreateController {
                         new FieldAccessExpr(new ThisExpr(), field.getVariables().get(0).getNameAsString()),
                         "findById", new NodeList<>(new NameExpr("id"))),
                         "map", new NodeList<>(new MethodReferenceExpr(
-                        new NameExpr(entity.getNameAsString() + "Value.Simple"), new NodeList<>(), "new"))),
+                        new NameExpr(returnClass), new NodeList<>(), "new"))),
                         "orElseGet", new NodeList<>(new NullLiteralExpr()))
         ));
     }
@@ -159,7 +160,7 @@ public class CreateController {
      */
     private void createListMethod(ClassOrInterfaceDeclaration clazz, FieldDeclaration field) {
         MethodDeclaration method = clazz.addMethod("list" + entity.getNameAsString(), Modifier.Keyword.PUBLIC);
-        //method.tryAddImportToParentCompilationUnit(List.class);
+        method.addAndGetAnnotation(GetMapping.class).addPair("value", new StringLiteralExpr("/list"));
         method.setType(new ClassOrInterfaceType().setName("List").setTypeArguments(new ClassOrInterfaceType().setName(entity.getNameAsString() + "Value.Simple")));
         method.addAndGetParameter(PrimitiveType.intType(), "page").addAndGetAnnotation(RequestParam.class).addPair("defaultValue", new StringLiteralExpr("0"));
         method.addAndGetParameter(PrimitiveType.intType(), "size").addAndGetAnnotation(RequestParam.class).addPair("defaultValue", new StringLiteralExpr("10"));
@@ -177,7 +178,7 @@ public class CreateController {
         method.tryAddImportToParentCompilationUnit(Collectors.class);
     }
 
-    public Optional<ClassOrInterfaceDeclaration> searchDTO() {
+    public Optional<ClassOrInterfaceDeclaration> searchDTO(String innerClass) {
         String className = entity.getNameAsString() + "Value";
         Optional<CompilationUnit> clazz = this.searchClass(className);
         //clazz.get().get
@@ -186,7 +187,7 @@ public class CreateController {
                 for(BodyDeclaration<?> yp : type.getMembers()){
                     if(yp.isClassOrInterfaceDeclaration()){
                         ClassOrInterfaceDeclaration dec = (ClassOrInterfaceDeclaration) yp;
-                        if(dec.getNameAsString().equals("Simple")){
+                        if(dec.getNameAsString().equals(innerClass)){
                             return Optional.of(dec);
                         }
                     }

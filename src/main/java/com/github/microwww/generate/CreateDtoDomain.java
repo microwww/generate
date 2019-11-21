@@ -129,6 +129,7 @@ public class CreateDtoDomain {
     public static List<CompilationUnit> createEntityDTO(File src, String pkg) {
         String simpleClassName = "Simple";
         String infoClassName = "Info";
+        String moreClassName = "More";
         return FileHelper.scanJavaFile(src, file -> {
             try {
                 CompilationUnit parse = StaticJavaParser.parse(file);
@@ -171,6 +172,16 @@ public class CreateDtoDomain {
                                         ctr.getBody().addStatement(new MethodCallExpr("super", new NameExpr(domain.getName())));
                                     }
 
+                                    // MORE inner class
+                                    ClassOrInterfaceDeclaration more = parse.addClass(moreClassName, Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
+                                    more.addExtendedType(info.getNameAsString());
+                                    out.addMember(more);
+                                    {// Constructor
+                                        ConstructorDeclaration ctr = more.addConstructor(Modifier.Keyword.PUBLIC);
+                                        Parameter domain = ctr.addAndGetParameter(clazz.getNameAsString(), "domain");
+                                        ctr.getBody().addStatement(new MethodCallExpr("super", new NameExpr(domain.getName())));
+                                    }
+
                                     // INNER CLASS delegate
                                     List<MethodDeclaration> methods = clazz.getMethods();
                                     for (MethodDeclaration mth : methods) {
@@ -183,10 +194,10 @@ public class CreateDtoDomain {
                                                 clazz.getFieldByName(field).map(fd -> {
                                                     String[] ann = new String[]{OneToMany.class.getSimpleName(), ManyToMany.class.getSimpleName(), ManyToOne.class.getSimpleName()};
                                                     return fd.getAnnotationByName(OneToMany.class.getSimpleName()).map(f -> {
-                                                        return Optional.of(delegateOne2many(info, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
+                                                        return Optional.of(delegateOne2many(more, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
                                                     }).orElseGet(() -> {
                                                         return fd.getAnnotationByName(ManyToMany.class.getSimpleName()).map(f -> {
-                                                            return Optional.of(delegateOne2many(info, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
+                                                            return Optional.of(delegateOne2many(more, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
                                                         }).orElseGet(() -> {
                                                             return fd.getAnnotationByName(ManyToOne.class.getSimpleName()).map(f -> {
                                                                 return Optional.of(delegateMany2one(info, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
