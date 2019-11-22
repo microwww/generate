@@ -79,7 +79,7 @@ public class CreateController {
     private void createSaveMethod(ClassOrInterfaceDeclaration clazz, FieldDeclaration field) {
         String param = "entity";
         MethodDeclaration method = clazz.addMethod("save" + entity.getNameAsString(), Modifier.Keyword.PUBLIC);
-        method.addAndGetAnnotation(PostMapping.class).addPair("value", new StringLiteralExpr("/detail"));
+        method.addAndGetAnnotation(PostMapping.class).addPair("value", new StringLiteralExpr("/save"));
         method.addParameter(entity.getNameAsString(), param);
         Optional<FieldDeclaration> id = ParserHelper.findFieldByAnnotation(entity, "Id");
 
