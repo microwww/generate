@@ -7,35 +7,28 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class JpaEntityTest {
 
-    public static final File file;
-
-    static { // maven standard directory structure
-        File root = new File(FileHelper.class.getResource("/").getFile());//  !! / ==> /target/test-classes/
-        file = FileSystems.getDefault().getPath(root.getAbsolutePath(), "..", "..",
-                "src", "main", "java").toFile();
-    }
+    public static final File file = new File(System.getProperty("user.dir"), "demo");
+    //public static final File file =  "D:\\cygwin64\\home\\changshu.li\\generate\\demo\\src\\main\\java";
 
     @Test
     @Ignore("Skip, this is a demo !")
     public void createEntity() {
-        JpaEntity entities = new JpaEntity(file, "cn.lcs.generate.domain");
-        entities.db2entity("com.mysql.cj.jdbc.Driver", "jdbc:mysql://192.168.1.31/go-one", "root", "123456");
+        JpaEntity entities = new JpaEntity("com.mysql.cj.jdbc.Driver", "jdbc:mysql://192.168.1.31/go-one", "root", "123456");//(file, "cn.lcs.generate.domain");
+        entities.createEntity(file, "cn.lcs.generate.domain");
     }
 
     @Test
     public void testWriteEntityIdGeneratedValue() throws IOException {
-        JpaEntity entities = new JpaEntity(file, "cn.lcs.generate.domain");
-        List<File> file = entities.writeEntityIdGeneratedValue();
+        List<File> file = JpaEntity.writeEntityIdGeneratedValue(JpaEntityTest.file);
         Assert.assertFalse(file.isEmpty());
         // try again
-        file = entities.writeEntityIdGeneratedValue();
+        file = JpaEntity.writeEntityIdGeneratedValue(JpaEntityTest.file);
         List<String> list = Files.readAllLines(file.get(0).toPath());
         String str = list.stream().collect(Collectors.joining("\n"));
         Assert.assertTrue(str.contains("GeneratedValue"));
@@ -43,11 +36,10 @@ public class JpaEntityTest {
 
     @Test
     public void testEntitySetToList() {
-        JpaEntity entities = new JpaEntity(file, "cn.lcs.generate.domain");
-        List<CompilationUnit> file = entities.entitySetToList();
+        List<CompilationUnit> file = JpaEntity.entitySetToList(JpaEntityTest.file);
         Assert.assertFalse(file.isEmpty());
         // writer
-        entities.writerEntitySetToList();
+        JpaEntity.writerEntitySetToList(JpaEntityTest.file);
     }
 
 

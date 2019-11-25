@@ -31,39 +31,33 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JpaEntity {
 
-    public File srcDirectory;
-    public String pkg;
+    private JDBCConfiguration conf;
 
-    public JpaEntity(String src, String pkg) {
-        this(new File(src), pkg);
-    }
-
-    public JpaEntity(File src, String pkg) {
-        this.srcDirectory = src;
-        this.pkg = pkg;
-    }
-
-    public void db2entity(DataSource dataSource) {
+    public JpaEntity(DataSource dataSource) {
         PersistenceProviderImpl provider = new PersistenceProviderImpl();
         PersistenceUnitInfoImpl unit = new PersistenceUnitInfoImpl();
         unit.setJtaDataSource(dataSource);
         unit.setPersistenceUnitName("default");
         EntityManagerFactoryImpl factory = (EntityManagerFactoryImpl) provider.createContainerEntityManagerFactory(unit, Collections.EMPTY_MAP);
-        JDBCConfiguration config = (JDBCConfiguration) factory.getConfiguration();
-        db2entity(config, pkg);
+        conf = (JDBCConfiguration) factory.getConfiguration();
+        //db2entity(config, pkg);
     }
 
-    public void db2entity(String driver, String url, String username, String password) {
-        JDBCConfiguration conf = new JDBCConfigurationImpl();
+    public JpaEntity(String driver, String url, String username, String password) {
+        conf = new JDBCConfigurationImpl();
         conf.setConnectionDriverName(driver);
         conf.setConnectionURL(url);
         conf.setConnectionUserName(username);
         conf.setConnectionPassword(password);
         conf.setSpecification("jpa");
-        db2entity(conf, pkg);
+        //db2entity(conf, pkg);
     }
 
-    public void db2entity(JDBCConfiguration conf, String pkg) {
+    public JpaEntity createEntity(String srcDirectory, String pkg) {
+        return this.createEntity(new File(srcDirectory), pkg);
+    }
+
+    public JpaEntity createEntity(File srcDirectory, String pkg) {
         String f = srcDirectory.getAbsolutePath();
         Options opts = new Options();
         String[] arguments = opts.setFromCmdLine(new String[]{
@@ -79,13 +73,14 @@ public class JpaEntity {
                 conf.close();
             }
         });
+        return this;
     }
 
-    public List<File> writeEntityIdGeneratedValue() {
-        return FileHelper.writeJavaFile(srcDirectory, entityIdGeneratedValue());
+    public static List<File> writeEntityIdGeneratedValue(File srcDirectory) {
+        return FileHelper.writeJavaFile(srcDirectory, entityIdGeneratedValue(srcDirectory));
     }
 
-    public List<CompilationUnit> entityIdGeneratedValue() {
+    public static List<CompilationUnit> entityIdGeneratedValue(File srcDirectory) {
         return FileHelper.scanJavaFile(srcDirectory, file -> {
             try {
                 CompilationUnit parse = StaticJavaParser.parse(file);
@@ -114,11 +109,11 @@ public class JpaEntity {
         });
     }
 
-    public List<File> writerEntitySetToList() {
-        return FileHelper.writeJavaFile(srcDirectory, entitySetToList());
+    public static List<File> writerEntitySetToList(File srcDirectory) {
+        return FileHelper.writeJavaFile(srcDirectory, entitySetToList(srcDirectory));
     }
 
-    public List<CompilationUnit> entitySetToList() {
+    public static List<CompilationUnit> entitySetToList(File srcDirectory) {
         return FileHelper.scanJavaFile(srcDirectory, file -> {
             try {
                 CompilationUnit parse = StaticJavaParser.parse(file);

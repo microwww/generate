@@ -44,6 +44,27 @@ public class CreateController {
         return _service;
     }
 
+    public static List<File> writeClassesFile(File src, String pkg) {
+        List<CompilationUnit> classes = createClasses(src, pkg);
+        return FileHelper.writeJavaFile(src, classes);
+    }
+
+    public static List<CompilationUnit> createClasses(File src, String pkg) {
+        List<CompilationUnit> units = FileHelper.scanJavaFile(src, f -> {
+            try {
+                CompilationUnit parse = StaticJavaParser.parse(f);
+                return ParserHelper.findTypeByAnnotation(parse, "Entity").map(e -> {
+                    CreateController create = new CreateController(src, (ClassOrInterfaceDeclaration) e);
+                    CompilationUnit unit = create.createClass(pkg);
+                    return unit;
+                });
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        return units;
+    }
+
     public CompilationUnit createClass(String pkg) {
         CompilationUnit unit = new CompilationUnit(pkg);
         ClassOrInterfaceDeclaration clazz = unit.addClass(entity.getNameAsString() + "Controller", Modifier.Keyword.PUBLIC);
@@ -183,11 +204,11 @@ public class CreateController {
         Optional<CompilationUnit> clazz = this.searchClass(className);
         //clazz.get().get
         Optional<ClassOrInterfaceDeclaration> simple = clazz.map(m -> {
-            for(TypeDeclaration<?> type : m.getTypes()){
-                for(BodyDeclaration<?> yp : type.getMembers()){
-                    if(yp.isClassOrInterfaceDeclaration()){
+            for (TypeDeclaration<?> type : m.getTypes()) {
+                for (BodyDeclaration<?> yp : type.getMembers()) {
+                    if (yp.isClassOrInterfaceDeclaration()) {
                         ClassOrInterfaceDeclaration dec = (ClassOrInterfaceDeclaration) yp;
-                        if(dec.getNameAsString().equals(innerClass)){
+                        if (dec.getNameAsString().equals(innerClass)) {
                             return Optional.of(dec);
                         }
                     }
