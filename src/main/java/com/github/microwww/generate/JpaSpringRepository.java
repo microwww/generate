@@ -94,9 +94,11 @@ public class JpaSpringRepository {
     }
 
     /**
-     * default Optional<GoConfig> findById(int integer) {
-     * ____return this.findById(Integer.valueOf(integer));
+     * <pre>
+     * default Optional&lt;GoConfig&gt; findById(int integer) {
+     *     return this.findById(Integer.valueOf(integer));
      * }
+     * </pre>
      */
     public static final BiFunction<ClassOrInterfaceDeclaration, ClassOrInterfaceType, MethodDeclaration> findById = (clazz, entity) -> {
         MethodDeclaration find = clazz.addMethod("findById", PUBLIC);
