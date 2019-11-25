@@ -7,13 +7,14 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class JpaEntityTest {
 
-    public static final File file = new File(System.getProperty("user.dir"), "demo");
+    public static final File file = FileSystems.getDefault().getPath(System.getProperty("user.dir"), "target", "demo").toFile();
     //public static final File file =  "D:\\cygwin64\\home\\changshu.li\\generate\\demo\\src\\main\\java";
 
     @Test
