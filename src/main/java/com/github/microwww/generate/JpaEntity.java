@@ -2,9 +2,12 @@ package com.github.microwww.generate;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.microwww.generate.util.FileHelper;
@@ -24,6 +27,9 @@ import javax.persistence.OneToMany;
 import javax.sql.DataSource;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -78,6 +84,45 @@ public class JpaEntity {
 
     public static List<File> writeEntityIdGeneratedValue(File srcDirectory) {
         return FileHelper.writeJavaFile(srcDirectory, entityIdGeneratedValue(srcDirectory));
+    }
+
+    public void order(File srcDirectory) { // TODO:  no
+        FileHelper.scanJavaFile(srcDirectory, file -> {
+            try {
+                CompilationUnit parse = StaticJavaParser.parse(file);
+                String name = file.getName().split("\\.")[0];
+                parse.getClassByName(name).ifPresent(clazz -> clazz.getAnnotationByName("Entity").ifPresent(o -> {
+                    clazz.getAnnotations().forEach(e -> {
+                        if ("Table".equals(e.getNameAsString())) {
+                            NodeList<MemberValuePair> pairs = e.asNormalAnnotationExpr().getPairs();
+                            for (MemberValuePair pair : pairs) {
+                                if ("name".equals(pair.getName().asString())) {
+                                    String value = pair.getValue().asLiteralStringValueExpr().getValue();
+                                    conf.getSchema();
+                                    try {
+                                        Connection conn = conf.getDataSource(null).getConnection();
+                                        ResultSet table = conn.getMetaData().getColumns(conn.getCatalog(), "%", value, "%");
+                                        List<String> ff = new ArrayList<>();
+                                        while (table.next()) {
+                                            ff.add(table.getString("COLUMN_NAME"));
+                                        }
+                                        List<FieldDeclaration> fields = clazz.getFields();
+                                        for (FieldDeclaration f : fields) {
+                                            clazz.remove(f);
+                                        }
+
+                                    } catch (Exception ex) {
+                                        ex.printStackTrace();
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }));
+            } catch (FileNotFoundException e) {
+            }
+            return Optional.empty();
+        });
     }
 
     public static List<CompilationUnit> entityIdGeneratedValue(File srcDirectory) {

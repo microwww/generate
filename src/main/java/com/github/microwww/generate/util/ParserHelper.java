@@ -1,9 +1,6 @@
 package com.github.microwww.generate.util;
 
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
-import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
@@ -12,8 +9,10 @@ import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -61,38 +60,60 @@ public class ParserHelper {
         return Optional.empty();
     }
 
-    public static List<ImportDeclaration> findImportClass(CompilationUnit parse, Type... type) {
+    public static List<Optional<ImportDeclaration>> findImportClass(CompilationUnit parse, Type... type) {
         return findImportClass(parse, Arrays.stream(type));
     }
 
-    public static List<ImportDeclaration> findImportClass(CompilationUnit parse, Collection<Parameter> parameters) {
+    public static List<Optional<ImportDeclaration>> findImportClass(CompilationUnit parse, Collection<Parameter> parameters) {
         return findImportClass(parse, parameters.stream().map(Parameter::getType));
     }
 
-    private static List<ImportDeclaration> findImportClass(CompilationUnit parse, Stream<Type> type) {
-        List<ImportDeclaration> list = new CopyOnWriteArrayList<>();
+    private static List<Optional<ImportDeclaration>> findImportClass(CompilationUnit parse, Stream<Type> type) {
+        List<Optional<ImportDeclaration>> list = new CopyOnWriteArrayList<>();
         type.forEach(ty -> {
-            List<ImportDeclaration> os = findImportClass(parse, ty);
+            List<Optional<ImportDeclaration>> os = findImportClass(parse, ty);
             list.addAll(os);
         });
         return list;
     }
 
-    public static List<ImportDeclaration> findImportClass(CompilationUnit parse, Type type) {
-        List<ImportDeclaration> list = new CopyOnWriteArrayList<>();
+    public static List<Optional<ImportDeclaration>> findImportClass(CompilationUnit parse, Type type) {
+        return findImportClass(parse, type, (File)null);
+    }
+
+    public static List<Optional<ImportDeclaration>> findImportClass(CompilationUnit parse, Type type, File file) {
+        List<Optional<ImportDeclaration>> list = new CopyOnWriteArrayList<>();
         if (type instanceof ClassOrInterfaceType) {
             ClassOrInterfaceType ci = (ClassOrInterfaceType) type;
-            findImportClass(parse, ci.getNameAsString()).ifPresent(o -> {
-                list.add(o);
-            });
+            Optional<ImportDeclaration> cs = findImportClass(parse, ci.getNameAsString());
+            if (cs.isPresent()) {
+            } else if (file != null) {
+                File root = tryRootByPackage(file, parse);
+                cs = findImportClassFromClassPath(root, parse, type);
+            }
+            list.add(cs);
             ci.getTypeArguments().ifPresent(oo -> {
                 oo.stream().forEach(e -> {
-                    List<ImportDeclaration> os = findImportClass(parse, e); // 递归
+                    List<Optional<ImportDeclaration>> os = findImportClass(parse, e, file); // 递归
                     list.addAll(os);
                 });
             });
         }
         return list;
+    }
+
+    public static File tryRootByPackage(File file, CompilationUnit parse) {
+        File root = file;
+        {
+            String[] pck = parse.getPackageDeclaration().map(e -> e.getNameAsString()).orElse("").split(Pattern.quote("."));
+            for (int i = pck.length; ; i--) {
+                root = root.getParentFile();
+                if (i <= 0 || !root.getName().equals(pck[i - 1])) {
+                    break;
+                }
+            }
+        }
+        return root;
     }
 
     public static void delegate(FieldDeclaration field, MethodDeclaration method) {
@@ -108,8 +129,8 @@ public class ParserHelper {
         CompilationUnit from = getRootNode(method).get();
         CompilationUnit target = getRootNode(toClazz).get();
 
-        ParserHelper.findImportClass(from, md.getType()).stream().forEach(target::addImport);
-        ParserHelper.findImportClass(from, method.getParameters()).forEach(target::addImport);
+        ParserHelper.findImportClass(from, md.getType()).stream().filter(Optional::isPresent).map(Optional::get).forEach(target::addImport);
+        ParserHelper.findImportClass(from, method.getParameters()).stream().filter(Optional::isPresent).map(Optional::get).forEach(target::addImport);
 
         BlockStmt stmt = md.getBody().get();
         //FieldAccessExpr ex = new FieldAccessExpr(new ThisExpr(), field); //.getVariable(0).getNameAsString());
@@ -132,10 +153,36 @@ public class ParserHelper {
         return Optional.empty();
     }
 
+    public static Optional<ImportDeclaration> findImportClassFromClassPath(File javaFile, CompilationUnit parse, Type type) {
+        if (type instanceof ClassOrInterfaceType) {
+            ClassOrInterfaceType tp = (ClassOrInterfaceType) type;
+            return parse.getPackageDeclaration().flatMap(e -> {
+                String prt = e.getNameAsString().replace('.', File.separatorChar);
+                File file = new File(new File(javaFile, prt), tp.getNameAsString() + ".java");
+                if (file.exists()) {
+                    return Optional.of(new ImportDeclaration(e.getNameAsString() + "." + tp.getNameAsString(), false, false));
+                }
+                return Optional.empty();
+            });
+        }
+        return Optional.empty();
+    }
+
     public static Optional<ImportDeclaration> findImportClass(CompilationUnit parse, String classOrInterface) {
         for (ImportDeclaration impt : parse.getImports()) {
-            if (impt.getNameAsString().endsWith("." + classOrInterface)) {
+            String path = impt.getNameAsString();
+            if (path.endsWith("." + classOrInterface)) {
                 return Optional.of(impt);
+            } else {
+                if (impt.isAsterisk()) {
+                    for (char c : new char[]{'.', '$'}) {
+                        try {
+                            Class<?> cz = Class.forName(path + c + classOrInterface);
+                            return Optional.of(new ImportDeclaration(cz.getName(), false, false));
+                        } catch (ClassNotFoundException e) {
+                        }
+                    }
+                }
             }
         }
         return Optional.empty();
@@ -145,8 +192,8 @@ public class ParserHelper {
         List<String> list = new ArrayList();
         find(clazz, list).ifPresent(c ->
                 c.getPackageDeclaration().ifPresent(p -> {
-                            list.add(0, p.getNameAsString());
-                        }));
+                    list.add(0, p.getNameAsString());
+                }));
         String join = list.stream().collect(Collectors.joining("."));
         return new ImportDeclaration(join, false, false);
     }

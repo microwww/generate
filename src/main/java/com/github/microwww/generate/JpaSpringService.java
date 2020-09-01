@@ -36,7 +36,7 @@ public class JpaSpringService {
     public static List<CompilationUnit> readRepositoryCreateService(File src, final String servicePackage) {
         return FileHelper.scanJavaFile(src, (f) -> {
             try {
-                return createServiceByRepository(f, servicePackage, findById, findAll, save);
+                return createServiceByRepository(f, servicePackage, findById, getById, findAll, save);
             } catch (FileNotFoundException e) {
                 logger.warn("Create error ! File : {}", f.getAbsolutePath(), e);
                 throw new RuntimeException(e);
@@ -138,5 +138,44 @@ public class JpaSpringService {
                                         new ThisExpr(), field.getVariables().get(0).getNameAsString()),
                                 save.getName(),
                                 new NodeList<>(new NameExpr(parameter.getName())))));
+    };
+
+    public static final BiConsumer<FieldDeclaration, ClassOrInterfaceDeclaration> getById = (field, repository) -> {
+        List<MethodDeclaration> method = repository.getMethodsByName("findById");//.get(0);
+        if (!method.isEmpty()) {
+            ClassOrInterfaceDeclaration clazz = (ClassOrInterfaceDeclaration) field.getParentNode().get();
+            MethodDeclaration def = method.get(0);
+            MethodDeclaration save = clazz.addMethod("getById", PUBLIC);
+            Type type = def.getType().asClassOrInterfaceType().getTypeArguments().get().get(0);
+            save.setType(type);
+            Parameter parameter = save.addAndGetParameter(def.getParameter(0));
+            BlockStmt stmt = save.getBody().get();
+            // return new ExistException.NotExist(Album.class);
+            BlockStmt lambda = new BlockStmt().addStatement(new ReturnStmt(
+                    new ObjectCreationExpr(null, StaticJavaParser.parseClassOrInterfaceType("ExistException.NotExist"), new NodeList<>(new ClassExpr(type)))
+            ));
+            /**
+             *     public Album getById(int id) {
+             *         return this.albumRepository.findById(id).orElseThrow(() -> {
+             *             return new ExistException.NotExist(Album.class);
+             *         });
+             *     }
+             */
+            stmt.addStatement(
+                    new ReturnStmt(
+                            new MethodCallExpr(
+                                    new MethodCallExpr(
+                                            new FieldAccessExpr(
+                                                    new ThisExpr(), field.getVariables().get(0).getNameAsString()
+                                            ),
+                                            def.getName(),
+                                            new NodeList<>(new NameExpr(parameter.getName()))
+                                    )
+                                    , "orElseThrow"
+                                    , new NodeList<>(new LambdaExpr(new NodeList<>(), lambda))
+                            )
+                    )
+            );
+        }
     };
 }
