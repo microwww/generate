@@ -16,12 +16,20 @@ import org.springframework.util.Assert;
 import javax.persistence.*;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class CreateDomainForm {
     public static final Logger logger = LoggerFactory.getLogger(CreateDomainForm.class);
+
+    public static void createIdClass(File target, String pkg) {
+        CompilationUnit unit = new CompilationUnit(pkg);
+        TypeDeclaration dec = new ClassOrInterfaceDeclaration(new NodeList<>(Modifier.createModifierList(Modifier.Keyword.PUBLIC)), false, "ID");
+        unit.addType(dec);
+        FileHelper.writeJavaFile(target, Collections.singletonList(unit));
+    }
 
     public static void createJavaFile(File src, File target, String pkg) throws IOException {
         Assert.isTrue(src.isDirectory(), "Must is directory : " + src.getAbsolutePath());
