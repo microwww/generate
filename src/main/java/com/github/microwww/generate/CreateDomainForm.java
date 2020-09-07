@@ -15,10 +15,12 @@ import org.springframework.util.Assert;
 
 import javax.persistence.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class CreateDomainForm {
@@ -26,9 +28,34 @@ public class CreateDomainForm {
 
     public static void createIdClass(File target, String pkg) {
         CompilationUnit unit = new CompilationUnit(pkg);
-        TypeDeclaration dec = new ClassOrInterfaceDeclaration(new NodeList<>(Modifier.createModifierList(Modifier.Keyword.PUBLIC)), false, "ID");
+        TypeDeclaration<ClassOrInterfaceDeclaration> dec = new ClassOrInterfaceDeclaration(new NodeList<>(Modifier.createModifierList(Modifier.Keyword.PUBLIC)), false, "ID");
         unit.addType(dec);
         FileHelper.writeJavaFile(target, Collections.singletonList(unit));
+    }
+
+    public static List<CompilationUnit> refExtendsID(File src) {
+        return FileHelper.scanJavaFile(src, file -> {
+            try {
+                CompilationUnit parse = StaticJavaParser.parse(file);
+                AtomicBoolean exist = new AtomicBoolean();
+                for (TypeDeclaration<?> type : parse.getTypes()) {
+                    if (type.isClassOrInterfaceDeclaration()) {
+                        type.getMembers().stream().filter(e -> e.isClassOrInterfaceDeclaration()).filter(ee -> {
+                            return "Ref".equals(ee.asClassOrInterfaceDeclaration().getNameAsString());
+                        }).findAny().ifPresent(e -> {
+                            e.asClassOrInterfaceDeclaration().setExtendedTypes(new NodeList<>(StaticJavaParser.parseClassOrInterfaceType("ID")));
+                            exist.set(true);
+                        });
+                    }
+                }
+                if (exist.get()) {
+                    return Optional.of(parse);
+                }
+                return Optional.empty();
+            } catch (FileNotFoundException e) {
+            }
+            return Optional.empty();
+        });
     }
 
     public static void createJavaFile(File src, File target, String pkg) throws IOException {
@@ -44,7 +71,9 @@ public class CreateDomainForm {
                 file.getParentFile().mkdirs();
                 file.createNewFile();
             }
-            try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"));) {
+            try (
+                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))
+            ) {
                 writer.write(e.toString());
             }
         }
