@@ -7,7 +7,6 @@ import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
-import com.github.microwww.generate.CreateDomainForm;
 import spring.data.jpa.generate.util.FileHelper;
 import spring.data.jpa.generate.util.ParserHelper;
 import org.slf4j.Logger;
@@ -19,7 +18,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class FormDomain extends Clazz {
-    public static final Logger logger = LoggerFactory.getLogger(CreateDomainForm.class);
+    public static final Logger logger = LoggerFactory.getLogger(FormDomain.class);
 
     private JpaEntity jpaEntity;
 

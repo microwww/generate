@@ -14,7 +14,6 @@ import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
-import com.github.microwww.generate.JpaSpringRepository;
 import spring.data.jpa.generate.util.ParserHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +28,7 @@ import java.util.stream.Collectors;
 import com.github.javaparser.ast.Modifier;
 
 public class SpringRepository extends Clazz {
-    private static final Logger logger = LoggerFactory.getLogger(JpaSpringRepository.class);
+    private static final Logger logger = LoggerFactory.getLogger(SpringRepository.class);
 
     private JpaEntity jpaEntity;
     private Type primitiveKey;
@@ -55,7 +54,7 @@ public class SpringRepository extends Clazz {
      * }
      * </pre>
      *
-     * @return
+     * @return findById method
      */
     public MethodDeclaration addFindById() {
         ClassOrInterfaceDeclaration clazz = getClazz();

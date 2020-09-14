@@ -125,14 +125,14 @@ public class SpringController extends Clazz {
     /**
      * <pre>
      * &#64;GetMapping("/list")
-     * public List &lt; GoTeamValue.Simple> listGoTeam(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+     * public List &lt; GoTeamValue.Simple&gt; listGoTeam(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
      *     return goTeamService.findAll(page, size).stream()
      *         .map(GoTeamValue.Simple::new)
      *         .collect(Collectors.toList());
      * }
      * </pre>
      *
-     * @return
+     * @return list Method
      */
     public MethodDeclaration addListMethod() {
         ClassOrInterfaceDeclaration clazz = this.getClazz();
