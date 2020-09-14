@@ -1,4 +1,4 @@
-package com.github.microwww.generate.util;
+package spring.data.jpa.generate.util;
 
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
@@ -116,10 +116,10 @@ public class ParserHelper {
         return root;
     }
 
-    public static void delegate(FieldDeclaration field, MethodDeclaration method) {
+    public static MethodDeclaration delegate(FieldDeclaration field, MethodDeclaration method) {
         ClassOrInterfaceDeclaration toClazz = (ClassOrInterfaceDeclaration) field.getParentNode().get();
         FieldAccessExpr expr = new FieldAccessExpr(new ThisExpr(), field.getVariable(0).getNameAsString());
-        delegate(toClazz, expr, method);
+        return delegate(toClazz, expr, method);
     }
 
     public static MethodDeclaration delegate(ClassOrInterfaceDeclaration toClazz, FieldAccessExpr fieldAccessExpr, MethodDeclaration method) {

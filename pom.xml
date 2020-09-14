@@ -33,7 +33,7 @@
 
     <groupId>com.github.microwww</groupId>
     <artifactId>generate</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
 
     <properties>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

@@ -1,4 +1,4 @@
-package com.github.microwww.generate;
+package spring.data.jpa.generate;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.*;
@@ -7,15 +7,12 @@ import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.TypeParameter;
-import com.github.microwww.generate.util.FileHelper;
-import com.github.microwww.generate.util.ParserHelper;
+import spring.data.jpa.generate.util.ParserHelper;
 
 import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.List;
@@ -24,11 +21,21 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class CreateDtoDomain {
+public class ViewDomain extends Clazz {
 
-    public static CompilationUnit createBaseClass(String pkg) {
+    private JpaEntity jpaEntity;
+
+    public ViewDomain(CompilationUnit unit, ClassOrInterfaceDeclaration clazz) {
+        super(unit, clazz);
+    }
+
+    public static Clazz createBaseClass(String pkg) {
+        return createBaseClass(pkg, "AbstractDomainValue");
+    }
+
+    public static Clazz createBaseClass(String pkg, String name) {
         CompilationUnit unit = new CompilationUnit(pkg);
-        ClassOrInterfaceDeclaration clazz = unit.addClass("AbstractDomainValue", Modifier.Keyword.PUBLIC, Modifier.Keyword.ABSTRACT);
+        ClassOrInterfaceDeclaration clazz = unit.addClass(name, Modifier.Keyword.PUBLIC, Modifier.Keyword.ABSTRACT);
         TypeParameter classParam = new TypeParameter("T");
         clazz.addTypeParameter(classParam);
 
@@ -42,7 +49,9 @@ public class CreateDtoDomain {
         createGetOriginMethod(clazz, classParam, field);
         createConversionMethod(clazz);
 
-        return unit;
+        Clazz cz = new Clazz(unit, clazz) {
+        };
+        return cz;
     }
 
     private static void createGetOriginMethod(ClassOrInterfaceDeclaration clazz, TypeParameter classParam, FieldDeclaration field) {
@@ -126,103 +135,95 @@ public class CreateDtoDomain {
         ));
     }
 
-    public static List<CompilationUnit> createEntityDTO(File src, String pkg) {
+    public static ViewDomain createEntityDTO(JpaEntity jpaEntity, ClassOrInterfaceType extend, String pkg) {
         String simpleClassName = "Simple";
         String infoClassName = "Info";
         String moreClassName = "More";
-        return FileHelper.scanJavaFile(src, file -> {
-            try {
-                CompilationUnit parse = StaticJavaParser.parse(file);
-                final String name = file.getName().split("\\.")[0];
-                Optional<Optional<CompilationUnit>> entitys = parse.getClassByName(name)
-                        .map(clazz ->
-                                clazz.getAnnotationByName("Entity").map(o -> {
-                                    String cname = name + "Value";
-                                    CompilationUnit unit = new CompilationUnit(pkg);
 
-                                    // IMPORT
-                                    ParserHelper.getRootNode(clazz).ifPresent(u -> {
-                                        u.getPackageDeclaration().ifPresent(p -> {
-                                            unit.addImport(new ImportDeclaration(p.getNameAsString(), false, true));
-                                        });
-                                    });
-                                    unit.addImport("java.util.*");
+        ClassOrInterfaceDeclaration entity = jpaEntity.getClazz();
+        CompilationUnit parse = jpaEntity.getUnit();
+        CompilationUnit unit = new CompilationUnit(pkg);
 
-                                    // CLASS
-                                    ClassOrInterfaceDeclaration out = unit.addClass(cname, Modifier.Keyword.PUBLIC, Modifier.Keyword.ABSTRACT);
-
-                                    // INNER CLASS
-                                    ClassOrInterfaceDeclaration simple = parse.addClass(simpleClassName, Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
-                                    ClassOrInterfaceType ext = simple.addExtendedType("AbstractDomainValue").getExtendedTypes(0);
-                                    ext.setTypeArguments(new TypeParameter(name));
-                                    out.addMember(simple);
-                                    {// Constructor
-                                        ConstructorDeclaration ctr = simple.addConstructor(Modifier.Keyword.PUBLIC);
-                                        Parameter domain = ctr.addAndGetParameter(clazz.getNameAsString(), "domain");
-                                        ctr.getBody().addStatement(new MethodCallExpr("super", new NameExpr(domain.getName())));
-                                    }
-
-                                    // INFO inner class
-                                    ClassOrInterfaceDeclaration info = parse.addClass(infoClassName, Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
-                                    info.addExtendedType(simple.getNameAsString());
-                                    out.addMember(info);
-                                    {// Constructor
-                                        ConstructorDeclaration ctr = info.addConstructor(Modifier.Keyword.PUBLIC);
-                                        Parameter domain = ctr.addAndGetParameter(clazz.getNameAsString(), "domain");
-                                        ctr.getBody().addStatement(new MethodCallExpr("super", new NameExpr(domain.getName())));
-                                    }
-
-                                    // MORE inner class
-                                    ClassOrInterfaceDeclaration more = parse.addClass(moreClassName, Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
-                                    more.addExtendedType(info.getNameAsString());
-                                    out.addMember(more);
-                                    {// Constructor
-                                        ConstructorDeclaration ctr = more.addConstructor(Modifier.Keyword.PUBLIC);
-                                        Parameter domain = ctr.addAndGetParameter(clazz.getNameAsString(), "domain");
-                                        ctr.getBody().addStatement(new MethodCallExpr("super", new NameExpr(domain.getName())));
-                                    }
-
-                                    // INNER CLASS delegate
-                                    List<MethodDeclaration> methods = clazz.getMethods();
-                                    for (MethodDeclaration mth : methods) {
-                                        if (mth.getParameters().isEmpty()) {
-                                            String mn = mth.getNameAsString();
-                                            Pattern compile = Pattern.compile("get([A-Z].*)");
-                                            Matcher mch = compile.matcher(mn);
-                                            if (mch.matches() && mth.getParameters().isEmpty()) {
-                                                String field = ParserHelper.firstLower(mch.group(1));
-                                                clazz.getFieldByName(field).map(fd -> {
-                                                    String[] ann = new String[]{OneToMany.class.getSimpleName(), ManyToMany.class.getSimpleName(), ManyToOne.class.getSimpleName()};
-                                                    return fd.getAnnotationByName(OneToMany.class.getSimpleName()).map(f -> {
-                                                        return Optional.of(delegateOne2many(more, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
-                                                    }).orElseGet(() -> {
-                                                        return fd.getAnnotationByName(ManyToMany.class.getSimpleName()).map(f -> {
-                                                            return Optional.of(delegateOne2many(more, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
-                                                        }).orElseGet(() -> {
-                                                            return fd.getAnnotationByName(ManyToOne.class.getSimpleName()).map(f -> {
-                                                                return Optional.of(delegateMany2one(info, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
-                                                            }).orElseGet(() -> {
-                                                                return fd.getAnnotationByName(OneToOne.class.getSimpleName()).map(f -> {
-                                                                    return Optional.of(delegateMany2one(info, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
-                                                                }).orElseGet(() -> {
-                                                                    return Optional.empty();
-                                                                });
-                                                            });
-                                                        });
-                                                    });
-                                                }).orElse(Optional.empty()).orElseGet(() -> {
-                                                    return ParserHelper.delegate(simple, new FieldAccessExpr(new SuperExpr(), "domain"), mth);
-                                                });
-                                            }
-                                        }
-                                    }
-                                    return unit;
-                                }));
-                return entitys.orElse(Optional.empty());
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException(e);
-            }
+        // IMPORT
+        ParserHelper.getRootNode(entity).ifPresent(u -> {
+            u.getPackageDeclaration().ifPresent(p -> {
+                unit.addImport(new ImportDeclaration(p.getNameAsString(), false, true));
+            });
         });
+        unit.addImport("java.util.*");
+
+        // CLASS
+        ClassOrInterfaceDeclaration out = unit.addClass(entity.getNameAsString() + "Value", Modifier.Keyword.PUBLIC, Modifier.Keyword.ABSTRACT);
+
+        // INNER CLASS
+        ClassOrInterfaceDeclaration simple = parse.addClass(simpleClassName, Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
+        ClassOrInterfaceType ext = simple.addExtendedType(extend).getExtendedTypes(0);
+        ext.setTypeArguments(new TypeParameter(entity.getNameAsString()));
+        out.addMember(simple);
+        {// Constructor
+            ConstructorDeclaration ctr = simple.addConstructor(Modifier.Keyword.PUBLIC);
+            Parameter domain = ctr.addAndGetParameter(entity.getNameAsString(), "domain");
+            ctr.getBody().addStatement(new MethodCallExpr("super", new NameExpr(domain.getName())));
+        }
+
+        // INFO inner class
+        ClassOrInterfaceDeclaration info = parse.addClass(infoClassName, Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
+        info.addExtendedType(simple.getNameAsString());
+        out.addMember(info);
+        {// Constructor
+            ConstructorDeclaration ctr = info.addConstructor(Modifier.Keyword.PUBLIC);
+            Parameter domain = ctr.addAndGetParameter(entity.getNameAsString(), "domain");
+            ctr.getBody().addStatement(new MethodCallExpr("super", new NameExpr(domain.getName())));
+        }
+
+        // MORE inner class
+        ClassOrInterfaceDeclaration more = parse.addClass(moreClassName, Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
+        more.addExtendedType(info.getNameAsString());
+        out.addMember(more);
+        {// Constructor
+            ConstructorDeclaration ctr = more.addConstructor(Modifier.Keyword.PUBLIC);
+            Parameter domain = ctr.addAndGetParameter(entity.getNameAsString(), "domain");
+            ctr.getBody().addStatement(new MethodCallExpr("super", new NameExpr(domain.getName())));
+        }
+
+        // INNER CLASS delegate
+        List<MethodDeclaration> methods = entity.getMethods();
+        for (MethodDeclaration mth : methods) {
+            if (mth.getParameters().isEmpty()) {
+                String mn = mth.getNameAsString();
+                Pattern compile = Pattern.compile("get([A-Z].*)");
+                Matcher mch = compile.matcher(mn);
+                if (mch.matches() && mth.getParameters().isEmpty()) {
+                    String field = ParserHelper.firstLower(mch.group(1));
+                    entity.getFieldByName(field).map(fd -> {
+                        String[] ann = new String[]{OneToMany.class.getSimpleName(), ManyToMany.class.getSimpleName(), ManyToOne.class.getSimpleName()};
+                        return fd.getAnnotationByName(OneToMany.class.getSimpleName()).map(f -> {
+                            return Optional.of(delegateOne2many(more, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
+                        }).orElseGet(() -> {
+                            return fd.getAnnotationByName(ManyToMany.class.getSimpleName()).map(f -> {
+                                return Optional.of(delegateOne2many(more, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
+                            }).orElseGet(() -> {
+                                return fd.getAnnotationByName(ManyToOne.class.getSimpleName()).map(f -> {
+                                    return Optional.of(delegateMany2one(info, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
+                                }).orElseGet(() -> {
+                                    return fd.getAnnotationByName(OneToOne.class.getSimpleName()).map(f -> {
+                                        return Optional.of(delegateMany2one(info, new FieldAccessExpr(new SuperExpr(), "domain"), mth));
+                                    }).orElseGet(() -> {
+                                        return Optional.empty();
+                                    });
+                                });
+                            });
+                        });
+                    }).orElse(Optional.empty()).orElseGet(() -> {
+                        return ParserHelper.delegate(simple, new FieldAccessExpr(new SuperExpr(), "domain"), mth);
+                    });
+                }
+            }
+        }
+
+        ViewDomain vdo = new ViewDomain(unit, out);
+        vdo.jpaEntity = jpaEntity;
+        return vdo;
     }
 
     public static MethodDeclaration delegateMany2one(ClassOrInterfaceDeclaration toClazz, FieldAccessExpr fieldAccessExpr, MethodDeclaration method) {
@@ -279,5 +280,13 @@ public class CreateDtoDomain {
         }
 
         return md;
+    }
+
+    public JpaEntity getJpaEntity() {
+        return jpaEntity;
+    }
+
+    public void setJpaEntity(JpaEntity jpaEntity) {
+        this.jpaEntity = jpaEntity;
     }
 }

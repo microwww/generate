@@ -1,10 +1,11 @@
-package com.github.microwww.generate.util;
+package spring.data.jpa.generate.util;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.PackageDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import spring.data.jpa.generate.util.ParserHelper;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
 public class FileHelper {
     private static final Logger logger = LoggerFactory.getLogger(ParserHelper.class);
 
-    public static <T> List<T> scanJavaFile(File src, Function<File, Optional<T>> createService) {
+    public static <T> List<T> scanJavaFile(File src, Function<File, Optional<T>> consumer) {
         List<T> res = new ArrayList<>();
         File[] list = new File[]{src};
         if (src.isDirectory()) {
@@ -29,10 +30,10 @@ public class FileHelper {
         }
         for (File f : list) {
             if (f.isDirectory()) {
-                List<T> add = scanJavaFile(f, createService); // 递归
+                List<T> add = scanJavaFile(f, consumer); // 递归
                 res.addAll(add);
             } else if (f.getName().toLowerCase().endsWith(".java")) {
-                createService.apply(f).ifPresent(repository -> {
+                consumer.apply(f).ifPresent(repository -> {
                     res.add(repository);
                 });
             } else {
