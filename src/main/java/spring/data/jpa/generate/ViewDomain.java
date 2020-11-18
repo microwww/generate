@@ -157,8 +157,10 @@ public class ViewDomain extends Clazz {
 
         // INNER CLASS
         ClassOrInterfaceDeclaration simple = parse.addClass(simpleClassName, Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC);
-        ClassOrInterfaceType ext = simple.addExtendedType(extend).getExtendedTypes(0);
-        ext.setTypeArguments(new TypeParameter(entity.getNameAsString()));
+        if(extend != null){
+            ClassOrInterfaceType ext = simple.addExtendedType(extend).getExtendedTypes(0);
+            ext.setTypeArguments(new TypeParameter(entity.getNameAsString()));
+        }
         out.addMember(simple);
         {// Constructor
             ConstructorDeclaration ctr = simple.addConstructor(Modifier.Keyword.PUBLIC);

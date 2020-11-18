@@ -71,9 +71,9 @@ public class JpaEntity extends Clazz {
         return FormDomain.createEntityForm(this, pkg);
     }
 
-    public ViewDomain createView(String pkg) {
-        Clazz cs = ViewDomain.createBaseClass(pkg);
-        return ViewDomain.createEntityDTO(this, cs.toClassOrInterfaceType(), pkg);
+    public ViewDomain createView(String pkg, ClassOrInterfaceType extend) {
+        // Clazz cs = ViewDomain.createBaseClass(pkg);
+        return ViewDomain.createEntityDTO(this, extend, pkg);
     }
 
     public List<FieldDeclaration> entitySetToList() {

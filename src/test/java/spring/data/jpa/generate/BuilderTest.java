@@ -16,6 +16,10 @@ public class BuilderTest {
         Map<CreateI18nException.Type, CompilationUnit> map = CreateI18nException.writeException(f, "test.exception");
         new Builder("com.mysql.cj.jdbc.Driver", "jdbc:mysql://localhost:3306/test", "root", "123456")
                 .createEntity(f, "test.domain").stream().forEach(entity -> {
+            entity.entityIdGeneratedValue();
+            entity.entitySetToList();
+            entity.write(f);
+
             entity.createRepository("test.repository").ifPresent(repository -> {
                 repository.addFindAll();
                 repository.addFindById();
@@ -26,11 +30,13 @@ public class BuilderTest {
                 service.addFindById();
                 CompilationUnit dec = map.get(CreateI18nException.Type.ExistException);
                 String clz = dec.getTypes().get(0).getFullyQualifiedName().get();
-                service.addGetOrElseThrow(StaticJavaParser.parseClassOrInterfaceType(clz));
+                service.addGetOrElseThrow(StaticJavaParser.parseClassOrInterfaceType(clz + ".NotExist"));
                 service.addSave();
                 service.write(f);
 
-                ViewDomain view = entity.createView("test.vo");
+                Clazz base = ViewDomain.createBaseClass("test.vo");
+                base.write(f);
+                ViewDomain view = entity.createView("test.vo", base.toClassOrInterfaceType());
                 view.write(f);
 
                 SpringController controller = service.createController("test.controller", view);
