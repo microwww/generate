@@ -92,6 +92,7 @@ public class SpringRepository extends Clazz {
     public MethodDeclaration addFindAll() {
         ClassOrInterfaceDeclaration clazz = getClazz();
         MethodDeclaration find = clazz.addMethod("findAll", Modifier.Keyword.PUBLIC);
+        find.setBody(null);
         find.addAndGetParameter("Pageable", "page");
         CompilationUnit unit = ParserHelper.getRootNode(clazz).get();
         unit.addImport("org.springframework.data.domain.Pageable");
