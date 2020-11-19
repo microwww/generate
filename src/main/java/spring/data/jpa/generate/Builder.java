@@ -123,7 +123,7 @@ public class Builder {
             if (e.isFieldDeclaration()) {
                 String cName = e.asFieldDeclaration().getAnnotationByClass(Column.class).flatMap(ee -> {
                     return ee.asNormalAnnotationExpr().getPairs()
-                            .stream().filter(eee -> "name".equals(eee.getName())).findAny()
+                            .stream().filter(eee -> "name".equals(eee.getNameAsString())).findAny()
                             .map(eee -> eee.getValue().asLiteralStringValueExpr().getValue());
                 }).orElse(e.asFieldDeclaration().getVariables().get(0).getNameAsString());
                 membersMap.put(cName, e);
