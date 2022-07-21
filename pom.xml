@@ -18,7 +18,7 @@
     <scm>
         <connection>scm:git:git@github.com:microwww/generate.git</connection>
         <developerConnection>scm:git:git@github.com:microwww/generate.git</developerConnection>
-        <url>git@git.oschina.net:oufu/ofcms.git</url>
+        <url>https://gitee.com/microwww/generate.git</url>
     </scm>
     <distributionManagement>
         <snapshotRepository>
