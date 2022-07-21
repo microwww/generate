@@ -44,7 +44,7 @@ public class SpringController extends Clazz {
         FieldDeclaration field = clazz.addField(fieldName, ParserHelper.firstLower(fieldName)).addAnnotation("Autowired");
         field.tryAddImportToParentCompilationUnit(Autowired.class);
 
-        unit.addImport(ParserHelper.findImportClass(entity));
+        unit.addImport(ParserHelper.findImportClass(view.getClazz()));
         unit.addImport(ParserHelper.findImportClass(service.getClazz()));
         unit.getImports().sort(Comparator.comparing(NodeWithName::getNameAsString));
 
