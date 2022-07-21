@@ -2,6 +2,7 @@ package spring.data.jpa.generate;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -10,12 +11,14 @@ import java.util.Map;
 
 public class BuilderTest {
 
+    @Ignore
     @Test
     public void createEntity() throws IOException {
-        File f = new File("E:\\yx.demo\\4U\\src\\main\\java\\");
-        String prefix = "cn.xy.fu";
+        File f = new File(".\\target\\generate");
+        System.out.println("-------- TARGET ------- " + f.getCanonicalPath());
+        String prefix = "cn.test";
         Map<CreateI18nException.Type, CompilationUnit> map = CreateI18nException.writeException(f, prefix + ".exception");
-        new Builder("com.mysql.cj.jdbc.Driver", "jdbc:mysql://192.168.1.246:3306/manage_4u", "root", "xyGames")
+        new Builder("com.mysql.cj.jdbc.Driver", "jdbc:mysql://localhost:3306/test", "root", "123456")
                 .createEntity(f, prefix + ".domain").stream().forEach(entity -> {
             entity.entityIdGeneratedValue();
             entity.entitySetToList();
